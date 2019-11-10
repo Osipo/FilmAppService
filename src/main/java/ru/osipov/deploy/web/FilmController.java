@@ -68,6 +68,7 @@ public class FilmController {
     }
 
     //POST: /v1/films/update/{film_name}?r='...'
+    //if no parameter was specified -> badRequest()
     @PostMapping(produces = APPLICATION_JSON_UTF8_VALUE, path = {"/update/{fname}"})
     public ResponseEntity updateRating(@PathVariable(name = "fname") String fname, @RequestParam(required = true,name = "r",defaultValue = "-1") Short rating){
         logger.info("/v1/films/update/");
@@ -91,6 +92,8 @@ public class FilmController {
         return ResponseEntity.ok(f);
     }
 
+    //POST: /v1/films/delete/{film_name}
+    //if no parameter was specified -> badRequest()
     @PostMapping(produces = APPLICATION_JSON_UTF8_VALUE,path = "/delete/{fname}")
     public ResponseEntity deleteFilm(@PathVariable(name = "fname")String name){
         logger.info("/v1/films/delete/'{}'",name);
