@@ -4,15 +4,18 @@ import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.osipov.deploy.models.CreateFilm;
 import ru.osipov.deploy.models.FilmInfo;
 import ru.osipov.deploy.services.FilmService;
 
+import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.springframework.http.MediaType.APPLICATION_JSON_UTF8_VALUE;
+import static org.springframework.http.MediaType.*;
 
 @RestController
 @RequestMapping("/v1/films")
@@ -26,20 +29,62 @@ public class FilmController {
         this.fService = fs;
     }
 
-    
-    //GET: /v1/films/{film_name}
-    //If no any name was specified -> getAll() [GET: /v1/films, /v1/films/]
-    @GetMapping(produces = APPLICATION_JSON_UTF8_VALUE, path={"/{name}","/"})
+    //GET: /v1/films/
+    //(By path:: /v1/films -> getByRating() -> getAll())
+    @GetMapping(produces = APPLICATION_JSON_UTF8_VALUE, path={"/"})
+    public List<FilmInfo> getAll(){
+        logger.info("getAll");
+        logger.info("/v1/films");
+        return fService.getAllFilms();
+    }
+
+    //GET: /v1/films/{film_id}
+    //if no id was specified -> getAll() [/v1/films/, /v1/films]
+    @GetMapping(produces = APPLICATION_JSON_UTF8_VALUE, path={"/{id}"})
+    public ResponseEntity getById(@PathVariable(name = "id", required = true) Long id) {
+        logger.info("getById");
+        logger.info("/v1/films/'{}'", id);
+        FilmInfo f = null;
+        try {
+            f = fService.getFilmById(id);
+        } catch (IllegalStateException e) {
+            logger.info("not found. 404");
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(f);
+    }
+
+    //GET: /v1/films/genre/{genre_id}
+    //If no genre_id was specified -> empty list.
+    @GetMapping(produces = APPLICATION_JSON_UTF8_VALUE,path = {"/genre/{gid}"})
+    public List<FilmInfo> getByGid(@PathVariable(required = true, name = "gid") Long gid){
+        return fService.getFilmsByGid(gid);
+    }
+
+    //POST: /v1/films/genre/{genre_id}
+    //if no ngid was specified then -> badRequest()
+    @PostMapping(produces = APPLICATION_JSON_UTF8_VALUE, path = {"/genre/{gid}"}, consumes = {TEXT_PLAIN_VALUE})
+    public ResponseEntity updateGenre(@PathVariable(required = true, name = "gid") Long oldgid, @Valid @RequestBody String ngid){
+        if(ngid == null || ngid.equals("")){
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(fService.updateGenre(oldgid,Long.parseLong(ngid)));
+    }
+
+
+    //GET: /v1/films/name/{film_name}
+    //If no any name was specified -> getAll() [GET: /v1/films/name, /v1/films/name/]
+    @GetMapping(produces = APPLICATION_JSON_UTF8_VALUE, path={"/name/{name}","/name/"})
     public List<FilmInfo> getAllByName(@PathVariable(required = false, name= "name") String name){
         logger.info("Get by name");
-        logger.info("/v1/films");
+        logger.info("/v1/films/name/");
         List<FilmInfo> films;
         if(name == null || name.equals("")) {
             logger.info("Name was not specified. Get all.");
             films = fService.getAllFilms();
         }
         else {
-            logger.info("/v1/films/'{}'",name);
+            logger.info("/v1/films/name/'{}'",name);
             logger.info("Name is '{}'",name);
             films = new ArrayList<FilmInfo>();
             films.add(fService.getByName(name));
@@ -88,6 +133,21 @@ public class FilmController {
             else{
                 return ResponseEntity.badRequest().build();
             }
+        }
+        return ResponseEntity.ok(f);
+    }
+
+    //PATCH: /v1/films/{film_id}
+    //If no film_id was specified -> badRequest()
+    //If no any data in body was specified -> badRequest()
+    @PatchMapping(produces = APPLICATION_JSON_UTF8_VALUE, consumes = APPLICATION_JSON_UTF8_VALUE, path = "/{id}")
+    public ResponseEntity updateFilm(@PathVariable(name = "id",required = true) Long id, @RequestBody @Valid CreateFilm data){
+        FilmInfo f = null;
+        try{
+            f = fService.updateFilm(id,data);
+        }
+        catch (IllegalStateException e){
+            return ResponseEntity.status(404).body(e.getMessage());
         }
         return ResponseEntity.ok(f);
     }

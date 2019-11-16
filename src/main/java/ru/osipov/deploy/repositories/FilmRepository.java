@@ -10,7 +10,7 @@ import java.util.Optional;
 @Repository
 public interface FilmRepository extends JpaRepository<Film, Long> {
     Optional<Film> findByFid(Long fid);
-    Optional<Film> findByGid(Long gid);
+    List<Film> findByGid(Long gid);
     Optional<Film> findByFname(String fname);
     List<Film>  findByRating(Short rating);
 }

@@ -5,11 +5,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.osipov.deploy.entities.Film;
+import ru.osipov.deploy.models.CreateFilm;
 import ru.osipov.deploy.models.FilmInfo;
 import ru.osipov.deploy.repositories.FilmRepository;
 
 import javax.annotation.Nonnull;
 import javax.persistence.EntityNotFoundException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -47,6 +49,30 @@ public class FilmServiceImpl implements FilmService {
     }
 
     @Nonnull
+    @Override
+    @Transactional(readOnly = true)
+    public FilmInfo getFilmById(Long id) {
+        logger.info("Get film by id = '{}'",id);
+        Optional<Film> o = rep.findByFid(id);
+        if(o.isPresent()){
+            logger.info("Film was found. Return object.");
+            return buildModel(o.get());
+        }
+        else{
+            logger.info("Film was not found. Throw exception...");
+            throw new IllegalStateException("Film was not found.");
+        }
+    }
+
+    @Nonnull
+    @Override
+    @Transactional(readOnly = true)
+    public List<FilmInfo> getFilmsByGid(Long gid) {
+        logger.info("Get films by genre_id = '{}'",gid);
+        return rep.findByGid(gid).stream().map(this::buildModel).collect(Collectors.toList());
+    }
+
+    @Nonnull
     @Transactional(readOnly = true)
     @Override
     public List<FilmInfo> getByRating(@Nonnull Short rating) {
@@ -77,6 +103,27 @@ public class FilmServiceImpl implements FilmService {
         }
     }
 
+    @Nonnull
+    @Override
+    @Transactional
+    public List<FilmInfo> updateGenre(Long oldgid, Long ngid) {
+        logger.info("Change genre in all films with specified = '{}'",oldgid);
+
+        List<Film> l = rep.findByGid(oldgid);
+        List<FilmInfo> res = new ArrayList<>();
+        logger.info("Films: "+l.size());
+        if(l.size() > 0){
+            logger.info("Updating...");
+            for(int i = 0; i < l.size(); i++){
+                Film f = l.get(i);
+                f.setGid(ngid);
+                rep.save(f);
+                res.add(buildModel(f));
+            }
+        }
+        return res;
+    }
+
     @Override
     @Transactional
     public FilmInfo deleteFilm(String name) throws IllegalStateException{
@@ -92,6 +139,27 @@ public class FilmServiceImpl implements FilmService {
         else{
             logger.info("Film was not found.");
             throw new IllegalStateException("Film with name"+name+"was not found.");
+        }
+    }
+
+    @Override
+    @Transactional
+    public FilmInfo updateFilm(Long id,@Nonnull CreateFilm request) {
+        logger.info("updating film...");
+        Optional<Film> o = rep.findByFid(id);
+        if(o.isPresent()){
+            Film f = o.get();
+            logger.info("Film was found.");
+            f.setFname(request.getName());
+            f.setRating(request.getRating());
+            f.setGid(request.getGid());
+            logger.info("New values are set.");
+            rep.save(f);
+            logger.info("Successful saved.");
+            return buildModel(f);
+        }
+        else{
+            throw new IllegalStateException("Film with "+id+"not found.");
         }
     }
 
